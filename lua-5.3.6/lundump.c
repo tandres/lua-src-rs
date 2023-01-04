@@ -33,6 +33,9 @@ typedef struct {
   lua_State *L;
   ZIO *Z;
   const char *name;
+  const char *code;
+  size_t code_size;
+  size_t code_pos;
 } LoadState;
 
 
@@ -111,10 +114,17 @@ static TString *LoadString (LoadState *S, Proto *p) {
 
 
 static void LoadCode (LoadState *S, Proto *f) {
-  int n = LoadInt(S);
-  f->code = luaM_newvector(S->L, n, Instruction);
-  f->sizecode = n;
-  LoadVector(S, f->code, n);
+  if (S->code_size) {
+    f->sizecode = *((int *)(S->code + S->code_pos));
+    S->code_pos += sizeof(int);
+    f->code = S->code + S->code_pos;
+    S->code_pos += (f->sizecode * sizeof(Instruction));
+  } else {
+    int n = LoadInt(S);
+    f->code = luaM_newvector(S->L, n, Instruction);
+    f->sizecode = n;
+    LoadVector(S, f->code, n);
+  }
 }
 
 
@@ -186,10 +196,19 @@ static void LoadUpvalues (LoadState *S, Proto *f) {
 
 static void LoadDebug (LoadState *S, Proto *f) {
   int i, n;
-  n = LoadInt(S);
-  f->lineinfo = luaM_newvector(S->L, n, int);
-  f->sizelineinfo = n;
-  LoadVector(S, f->lineinfo, n);
+  
+  if (S->code_size) {
+    f->sizelineinfo = *((int *)(S->code + S->code_pos));
+    S->code_pos += sizeof(int);
+    f->lineinfo = S->code + S->code_pos;
+    S->code_pos += (f->sizelineinfo * sizeof(int));
+  } else {
+    n = LoadInt(S);
+    f->lineinfo = luaM_newvector(S->L, n, int);
+    f->sizelineinfo = n;
+    LoadVector(S, f->lineinfo, n);
+  }
+  
   n = LoadInt(S);
   f->locvars = luaM_newvector(S->L, n, LocVar);
   f->sizelocvars = n;
@@ -215,6 +234,9 @@ static void LoadFunction (LoadState *S, Proto *f, TString *psource) {
   f->numparams = LoadByte(S);
   f->is_vararg = LoadByte(S);
   f->maxstacksize = LoadByte(S);
+  if (S->code_size) {
+    f->special = 1;
+  }
   LoadCode(S, f);
   LoadConstants(S, f);
   LoadUpvalues(S, f);
@@ -262,7 +284,7 @@ static void checkHeader (LoadState *S) {
 /*
 ** load precompiled chunk
 */
-LClosure *luaU_undump(lua_State *L, ZIO *Z, const char *name) {
+LClosure *luaU_undump(lua_State *L, ZIO *Z, const char *name, const char *code, size_t code_size) {
   LoadState S;
   LClosure *cl;
   if (*name == '@' || *name == '=')
@@ -273,6 +295,9 @@ LClosure *luaU_undump(lua_State *L, ZIO *Z, const char *name) {
     S.name = name;
   S.L = L;
   S.Z = Z;
+  S.code = code;
+  S.code_size = code_size;
+  S.code_pos = 0;
   checkHeader(&S);
   cl = luaF_newLclosure(L, LoadByte(&S));
   setclLvalue(L, L->top, cl);

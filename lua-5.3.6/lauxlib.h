@@ -86,7 +86,7 @@ LUALIB_API int (luaL_loadfilex) (lua_State *L, const char *filename,
 #define luaL_loadfile(L,f)	luaL_loadfilex(L,f,NULL)
 
 LUALIB_API int (luaL_loadbufferx) (lua_State *L, const char *buff, size_t sz,
-                                   const char *name, const char *mode);
+                                   const char *name, const char *mode, const char *code, size_t code_size);
 LUALIB_API int (luaL_loadstring) (lua_State *L, const char *s);
 
 LUALIB_API lua_State *(luaL_newstate) (void);
@@ -136,7 +136,7 @@ LUALIB_API void (luaL_requiref) (lua_State *L, const char *modname,
 
 #define luaL_opt(L,f,n,d)	(lua_isnoneornil(L,(n)) ? (d) : f(L,(n)))
 
-#define luaL_loadbuffer(L,s,sz,n)	luaL_loadbufferx(L,s,sz,n,NULL)
+#define luaL_loadbuffer(L,s,sz,n)	luaL_loadbufferx(L,s,sz,n,NULL, NULL, 0)
 
 
 /*

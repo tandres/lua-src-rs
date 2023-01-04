@@ -990,13 +990,13 @@ LUA_API int lua_pcallk (lua_State *L, int nargs, int nresults, int errfunc,
 
 
 LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
-                      const char *chunkname, const char *mode) {
+                      const char *chunkname, const char *mode, const char *code, size_t code_size) {
   ZIO z;
   int status;
   lua_lock(L);
   if (!chunkname) chunkname = "?";
   luaZ_init(L, &z, reader, data);
-  status = luaD_protectedparser(L, &z, chunkname, mode);
+  status = luaD_protectedparser(L, &z, chunkname, mode, code, code_size);
   if (status == LUA_OK) {  /* no errors? */
     LClosure *f = clLvalue(L->top - 1);  /* get newly created function */
     if (f->nupvalues >= 1) {  /* does it have an upvalue? */

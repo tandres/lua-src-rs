@@ -417,6 +417,7 @@ typedef struct Proto {
   int sizelocvars;
   int linedefined;  /* debug information  */
   int lastlinedefined;  /* debug information  */
+  int special;
   TValue *k;  /* constants used by the function */
   Instruction *code;  /* opcodes */
   struct Proto **p;  /* functions defined inside the function */

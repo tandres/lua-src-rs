@@ -36,8 +36,8 @@
 /* type of protected functions, to be ran by 'runprotected' */
 typedef void (*Pfunc) (lua_State *L, void *ud);
 
-LUAI_FUNC int luaD_protectedparser (lua_State *L, ZIO *z, const char *name,
-                                                  const char *mode);
+int luaD_protectedparser (lua_State *L, ZIO *z, const char *name,
+                          const char *mode, const char *code, size_t code_size);
 LUAI_FUNC void luaD_hook (lua_State *L, int event, int line);
 LUAI_FUNC int luaD_precall (lua_State *L, StkId func, int nresults);
 LUAI_FUNC void luaD_call (lua_State *L, StkId func, int nResults);
