@@ -55,6 +55,7 @@ typedef struct BlockCnt {
 } BlockCnt;
 
 
+function_info_callback_t func_info_cb = NULL;
 
 /*
 ** prototypes for recursive non-terminal functions
@@ -153,8 +154,12 @@ static void codestring (LexState *ls, expdesc *e, TString *s) {
 }
 
 
-static void checkname (LexState *ls, expdesc *e) {
-  codestring(ls, e, str_checkname(ls));
+static char * checkname (LexState *ls, expdesc *e) {
+  TString *ts = str_checkname(ls);
+  char *name = getstr(ts);
+  codestring(ls, e, ts);
+
+  return name;
 }
 
 
@@ -550,7 +555,7 @@ static void open_func (LexState *ls, FuncState *fs, BlockCnt *bl) {
 }
 
 
-static void close_func (LexState *ls) {
+static void close_func (LexState *ls, char *n) {
   lua_State *L = ls->L;
   FuncState *fs = ls->fs;
   Proto *f = fs->f;
@@ -571,6 +576,16 @@ static void close_func (LexState *ls) {
   lua_assert(fs->bl == NULL);
   ls->fs = fs->prev;
   luaC_checkGC(L);
+  if (func_info_cb) {
+    func_info_cb(n, 
+                 getstr(f->source), 
+                 f->sizecode * sizeof(Instruction), 
+                 f->sizelineinfo * sizeof(int), 
+                 f->sizek * sizeof(TValue), 
+                 f->sizep * sizeof(Proto *),
+                 f->sizelocvars * sizeof(LocVar),
+                 f->sizeupvalues * sizeof(Upvaldesc));
+  }
 }
 
 
@@ -608,13 +623,17 @@ static void statlist (LexState *ls) {
 }
 
 
-static void fieldsel (LexState *ls, expdesc *v) {
+static void fieldsel (LexState *ls, expdesc *v, char *n) {
   /* fieldsel -> ['.' | ':'] NAME */
   FuncState *fs = ls->fs;
   expdesc key;
   luaK_exp2anyregup(fs, v);
   luaX_next(ls);  /* skip the dot or colon */
-  checkname(ls, &key);
+  char *name = checkname(ls, &key);
+  if (n) {
+    strncpy(n, name, 63);
+  }
+
   luaK_indexed(fs, v, &key);
 }
 
@@ -780,7 +799,7 @@ static void parlist (LexState *ls) {
 }
 
 
-static void body (LexState *ls, expdesc *e, int ismethod, int line) {
+static void body (LexState *ls, expdesc *e, int ismethod, int line, char *n) {
   /* body ->  '(' parlist ')' block END */
   FuncState new_fs;
   BlockCnt bl;
@@ -798,7 +817,7 @@ static void body (LexState *ls, expdesc *e, int ismethod, int line) {
   new_fs.f->lastlinedefined = ls->linenumber;
   check_match(ls, TK_END, TK_FUNCTION, line);
   codeclosure(ls, e);
-  close_func(ls);
+  close_func(ls, n);
 }
 
 
@@ -900,7 +919,7 @@ static void suffixedexp (LexState *ls, expdesc *v) {
   for (;;) {
     switch (ls->t.token) {
       case '.': {  /* fieldsel */
-        fieldsel(ls, v);
+        fieldsel(ls, v, NULL);
         break;
       }
       case '[': {  /* '[' exp1 ']' */
@@ -972,7 +991,7 @@ static void simpleexp (LexState *ls, expdesc *v) {
     }
     case TK_FUNCTION: {
       luaX_next(ls);
-      body(ls, v, 0, ls->linenumber);
+      body(ls, v, 0, ls->linenumber, "varfunc");
       return;
     }
     default: {
@@ -1432,9 +1451,10 @@ static void ifstat (LexState *ls, int line) {
 static void localfunc (LexState *ls) {
   expdesc b;
   FuncState *fs = ls->fs;
-  new_localvar(ls, str_checkname(ls));  /* new local variable */
+  TString *ts = str_checkname(ls);
+  new_localvar(ls, ts);  /* new local variable */
   adjustlocalvars(ls, 1);  /* enter its scope */
-  body(ls, &b, 0, ls->linenumber);  /* function created in next register */
+  body(ls, &b, 0, ls->linenumber, getstr(ts));  /* function created in next register */
   /* debug information will only see the variable after this point! */
   getlocvar(fs, b.u.info)->startpc = fs->pc;
 }
@@ -1460,15 +1480,15 @@ static void localstat (LexState *ls) {
 }
 
 
-static int funcname (LexState *ls, expdesc *v) {
+static int funcname (LexState *ls, expdesc *v, char *n) {
   /* funcname -> NAME {fieldsel} [':' NAME] */
   int ismethod = 0;
   singlevar(ls, v);
   while (ls->t.token == '.')
-    fieldsel(ls, v);
+    fieldsel(ls, v, n);
   if (ls->t.token == ':') {
     ismethod = 1;
-    fieldsel(ls, v);
+    fieldsel(ls, v, n);
   }
   return ismethod;
 }
@@ -1478,9 +1498,10 @@ static void funcstat (LexState *ls, int line) {
   /* funcstat -> FUNCTION funcname body */
   int ismethod;
   expdesc v, b;
+  char name[64];
   luaX_next(ls);  /* skip FUNCTION */
-  ismethod = funcname(ls, &v);
-  body(ls, &b, ismethod, line);
+  ismethod = funcname(ls, &v, name);
+  body(ls, &b, ismethod, line, name);
   luaK_storevar(ls->fs, &v, &b);
   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */
 }
@@ -1621,12 +1642,14 @@ static void mainfunc (LexState *ls, FuncState *fs) {
   luaX_next(ls);  /* read first token */
   statlist(ls);  /* parse main body */
   check(ls, TK_EOS);
-  close_func(ls);
+  close_func(ls, "mainfunc");
 }
 
 
 LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
-                       Dyndata *dyd, const char *name, int firstchar) {
+                       Dyndata *dyd, const char *name, int firstchar, function_info_callback_t callback) {
+
+  func_info_cb = callback;
   LexState lexstate;
   FuncState funcstate;
   LClosure *cl = luaF_newLclosure(L, 1);  /* create main closure */

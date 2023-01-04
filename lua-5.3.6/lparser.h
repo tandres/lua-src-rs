@@ -123,11 +123,12 @@ typedef struct FuncState {
   lu_byte nactvar;  /* number of active local variables */
   lu_byte nups;  /* number of upvalues */
   lu_byte freereg;  /* first free register */
+  char name[64]; /* function name maybe */
 } FuncState;
 
 
 LUAI_FUNC LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
-                                 Dyndata *dyd, const char *name, int firstchar);
+                                 Dyndata *dyd, const char *name, int firstchar, function_info_callback_t callback);
 
 
 #endif

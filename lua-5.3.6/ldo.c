@@ -751,6 +751,7 @@ struct SParser {  /* data to 'f_parser' */
   Dyndata dyd;  /* dynamic structures used by the parser */
   const char *mode;
   const char *name;
+  function_info_callback_t cb
 };
 
 
@@ -773,7 +774,7 @@ static void f_parser (lua_State *L, void *ud) {
   }
   else {
     checkmode(L, p->mode, "text");
-    cl = luaY_parser(L, p->z, &p->buff, &p->dyd, p->name, c);
+    cl = luaY_parser(L, p->z, &p->buff, &p->dyd, p->name, c, p->cb);
   }
   lua_assert(cl->nupvalues == cl->p->sizeupvalues);
   luaF_initupvals(L, cl);
@@ -781,7 +782,7 @@ static void f_parser (lua_State *L, void *ud) {
 
 
 int luaD_protectedparser (lua_State *L, ZIO *z, const char *name,
-                                        const char *mode) {
+                                        const char *mode, function_info_callback_t callback) {
   struct SParser p;
   int status;
   L->nny++;  /* cannot yield during parsing */
@@ -789,6 +790,7 @@ int luaD_protectedparser (lua_State *L, ZIO *z, const char *name,
   p.dyd.actvar.arr = NULL; p.dyd.actvar.size = 0;
   p.dyd.gt.arr = NULL; p.dyd.gt.size = 0;
   p.dyd.label.arr = NULL; p.dyd.label.size = 0;
+  p.cb = callback;
   luaZ_initbuffer(L, &p.buff);
   status = luaD_pcall(L, f_parser, &p, savestack(L, L->top), L->errfunc);
   luaZ_freebuffer(L, &p.buff);
