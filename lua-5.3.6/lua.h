@@ -281,6 +281,7 @@ LUA_API int   (lua_load) (lua_State *L, lua_Reader reader, void *dt,
 
 LUA_API int (lua_dump) (lua_State *L, lua_Writer writer, void *data, int strip);
 
+LUA_API int (lua_splitdump) (lua_State *L, lua_Writer writer, void *data, void *code, int strip);
 
 /*
 ** coroutine functions

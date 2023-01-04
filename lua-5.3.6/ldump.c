@@ -23,8 +23,10 @@ typedef struct {
   lua_State *L;
   lua_Writer writer;
   void *data;
+  void *code;
   int strip;
   int status;
+  int split;
 } DumpState;
 
 
@@ -32,21 +34,24 @@ typedef struct {
 ** All high-level dumps go through DumpVector; you can change it to
 ** change the endianness of the result
 */
-#define DumpVector(v,n,D)	DumpBlock(v,(n)*sizeof((v)[0]),D)
+#define DumpVector(v,n,D)	DumpBlock(v,(n)*sizeof((v)[0]),D,0)
 
-#define DumpLiteral(s,D)	DumpBlock(s, sizeof(s) - sizeof(char), D)
+#define DumpLiteral(s,D)	DumpBlock(s, sizeof(s) - sizeof(char), D,0)
 
+#define DumpSplitVector(v,n,D)	DumpBlock(v,(n)*sizeof((v)[0]),D,1)
 
-static void DumpBlock (const void *b, size_t size, DumpState *D) {
+static void DumpBlock (const void *b, size_t size, DumpState *D, int split) {
   if (D->status == 0 && size > 0) {
+    void *data = split ? D->code : D->data;
     lua_unlock(D->L);
-    D->status = (*D->writer)(D->L, b, size, D->data);
+    D->status = (*D->writer)(D->L, b, size, data);
     lua_lock(D->L);
   }
 }
 
 
 #define DumpVar(x,D)		DumpVector(&x,1,D)
+#define DumpSplitVar(x,D)		DumpSplitVector(&x,1,D)
 
 
 static void DumpByte (int y, DumpState *D) {
@@ -59,6 +64,9 @@ static void DumpInt (int x, DumpState *D) {
   DumpVar(x, D);
 }
 
+static void DumpSplitInt (int x, DumpState *D) {
+  DumpSplitVar(x, D);
+}
 
 static void DumpNumber (lua_Number x, DumpState *D) {
   DumpVar(x, D);
@@ -88,8 +96,13 @@ static void DumpString (const TString *s, DumpState *D) {
 
 
 static void DumpCode (const Proto *f, DumpState *D) {
-  DumpInt(f->sizecode, D);
-  DumpVector(f->code, f->sizecode, D);
+  if (D->split) {
+    DumpSplitInt(f->sizecode, D);
+    DumpSplitVector(f->code, f->sizecode, D);  
+  } else {
+    DumpInt(f->sizecode, D);
+    DumpVector(f->code, f->sizecode, D);
+  }
 }
 
 
@@ -147,8 +160,13 @@ static void DumpUpvalues (const Proto *f, DumpState *D) {
 static void DumpDebug (const Proto *f, DumpState *D) {
   int i, n;
   n = (D->strip) ? 0 : f->sizelineinfo;
-  DumpInt(n, D);
-  DumpVector(f->lineinfo, n, D);
+  if (D->split) {
+    DumpSplitInt(n, D);
+    DumpSplitVector(f->lineinfo, n, D);
+  } else {
+    DumpInt(n, D);
+    DumpVector(f->lineinfo, n, D);
+  }
   n = (D->strip) ? 0 : f->sizelocvars;
   DumpInt(n, D);
   for (i = 0; i < n; i++) {
@@ -207,9 +225,27 @@ int luaU_dump(lua_State *L, const Proto *f, lua_Writer w, void *data,
   D.data = data;
   D.strip = strip;
   D.status = 0;
+  D.split = 0;
+  D.code = NULL;
   DumpHeader(&D);
   DumpByte(f->sizeupvalues, &D);
   DumpFunction(f, NULL, &D);
   return D.status;
 }
 
+
+int luaU_splitdump(lua_State *L, const Proto *f, lua_Writer w,
+                   void *data, void *code, int strip) {
+  DumpState D;
+  D.L = L;
+  D.writer = w;
+  D.data = data;
+  D.strip = strip;
+  D.status = 0;
+  D.split = 1;
+  D.code = code;
+  DumpHeader(&D);
+  DumpByte(f->sizeupvalues, &D);
+  DumpFunction(f, NULL, &D);
+  return D.status;
+}
