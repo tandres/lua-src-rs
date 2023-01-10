@@ -457,6 +457,25 @@ struct lua_Debug {
 
 /* }====================================================================== */
 
+typedef struct lua_Memreport {
+  int obj_count;
+  int thread_count;
+  int thread_size;
+  int table_count;
+  int table_size;
+  int short_string_count;
+  int short_string_size;
+  int long_string_count;
+  int long_string_size;
+  int lclosure_count;
+  int lclosure_size;
+  int cclosure_count;
+  int cclosure_size;
+  int userdata_count;
+  int userdata_size;
+  int proto_count;
+  int proto_size;
+} lua_Memreport;
 
 /******************************************************************************
 * Copyright (C) 1994-2020 Lua.org, PUC-Rio.
