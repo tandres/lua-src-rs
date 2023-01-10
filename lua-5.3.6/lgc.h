@@ -142,6 +142,7 @@ LUAI_FUNC void luaC_barrierback_ (lua_State *L, Table *o);
 LUAI_FUNC void luaC_upvalbarrier_ (lua_State *L, UpVal *uv);
 LUAI_FUNC void luaC_checkfinalizer (lua_State *L, GCObject *o, Table *mt);
 LUAI_FUNC void luaC_upvdeccount (lua_State *L, UpVal *uv);
+LUAI_FUNC void luaC_report (lua_State *L, lua_Memreport *report);
 
 
 #endif

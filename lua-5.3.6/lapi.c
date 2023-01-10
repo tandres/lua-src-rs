@@ -1105,6 +1105,13 @@ LUA_API int lua_gc (lua_State *L, int what, int data) {
 }
 
 
+/*
+** memory report function
+*/
+LUA_API void lua_memoryreport (lua_State *L, lua_Memreport *report) {
+  luaC_report(L, report);
+}
+
 
 /*
 ** miscellaneous functions

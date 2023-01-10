@@ -1174,6 +1174,82 @@ void luaC_fullgc (lua_State *L, int isemergency) {
   setpause(g);
 }
 
+static void report_clear(lua_Memreport *report) {
+  memset(report, 0, sizeof(lua_Memreport));
+}
+
+static void report_gcobject (GCObject *o, lua_Memreport *report) {
+  switch(o->tt) {
+    case LUA_TSHRSTR: {
+      report->short_string_count += 1;
+      report->short_string_size += sizelstring(gco2ts(o)->shrlen);
+      break;
+    }
+    case LUA_TLNGSTR: {
+      report->long_string_count += 1;
+      report->long_string_size += sizelstring(gco2ts(o)->u.lnglen);
+      break;
+    }
+    case LUA_TUSERDATA: {
+      report->userdata_count += 1;
+      report->userdata_size += sizeudata(gco2u(o));
+      break;
+    }
+    case LUA_TLCL: {
+      report->lclosure_count += 1;
+      report->lclosure_size += sizeLclosure(gco2lcl(o)->nupvalues);
+      break;
+    }
+    case LUA_TCCL: {
+      report->cclosure_count += 1;
+      report->cclosure_size += sizeCclosure(gco2ccl(o)->nupvalues);
+      break;
+    }
+    case LUA_TTABLE: {
+      Table *tab = gco2t(o);
+      int table_size = sizeof(Table) + sizeof(TValue) * tab->sizearray + sizeof(Node) * cast(size_t, allocsizenode(tab));
+      report->table_count += 1;
+      report->table_size += table_size;
+      break;
+    }
+    case LUA_TTHREAD: {
+      int thread_size = sizeof(lua_State) + sizeof(TValue) * gco2th(o)->stacksize + sizeof(CallInfo) * gco2th(o)->nci;
+      report->thread_count += 1;
+      report->thread_size += thread_size;
+      break;
+    }
+    case LUA_TPROTO: {
+      Proto *p = gco2p(o);
+      int proto_size = sizeof(Proto) + sizeof(Instruction) * p->sizecode +
+                         sizeof(Proto *) * p->sizep +
+                         sizeof(TValue) * p->sizek +
+                         sizeof(int) * p->sizelineinfo +
+                         sizeof(LocVar) * p->sizelocvars +
+                         sizeof(Upvaldesc) * p->sizeupvalues;
+      report->proto_count += 1;
+      report->proto_size += proto_size;
+      break;
+    }
+    default: lua_assert(0); break;
+  }
+}
+
+static void report_gcolist (global_State *g, lua_Memreport *report) {
+  GCObject *o = g->allgc;
+  while (o->next != NULL) {
+    report->obj_count += 1;
+    report_gcobject(o, report);
+    o = o->next;
+  }
+}
+
+void luaC_report (lua_State *L, lua_Memreport *report) {
+  global_State *g = G(L);
+  report_clear(report);
+  report_gcobject(cast(GCObject *, g->mainthread), report);
+  report_gcolist(g, report);
+}
+
 /* }====================================================== */
 
 
