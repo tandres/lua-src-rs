@@ -106,6 +106,10 @@ impl Build {
             _ => panic!("don't know how to build Lua for {}", target),
         };
 
+        if let Lua53 = version {
+            config.define("LUA_COMPAT_5_2", None);
+        }
+
         if let Lua54 = version {
             config.define("LUA_COMPAT_5_3", None);
             #[cfg(feature = "ucid")]
