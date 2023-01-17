@@ -213,3 +213,62 @@ int luaU_dump(lua_State *L, const Proto *f, lua_Writer w, void *data,
   return D.status;
 }
 
+
+static void WriteString(TString *s, DumpState *D) {
+  size_t size = tsslen(s) + 1;
+  char *str = getstr(s);
+  lua_lock(D->L);
+  D->status = (*D->writer)(D->L, str, size, D->data);
+  lua_unlock(D->L);
+}
+
+static void DumpFunctionStrings(const Proto *f, DumpState *D);
+
+static void DumpConstantStrings(const Proto *f, DumpState *D) {
+  for (int i = 0; i < f->sizek; i++) {
+    const TValue *o = &f->k[i];
+    switch (ttype(o)) {
+    case LUA_TSHRSTR:
+    case LUA_TLNGSTR:
+      WriteString(tsvalue(o), D);
+      break;
+    default:
+      break;
+    }
+  }
+}
+
+static void DumpUpvalueStrings(const Proto *f, DumpState *D) {
+  for (int i = 0; i < f->sizeupvalues; i++) {
+    WriteString(f->upvalues->name, D);
+  }
+}
+
+static void DumpLocalVariableStrings(const Proto *f, DumpState *D) {
+  for (int i = 0; i < f->sizelocvars; i++) {
+    WriteString(f->locvars->varname, D);
+  }
+}
+
+static void DumpProtosStrings(const Proto *f, DumpState *D) {
+  for (int i = 0; i < f->sizep; i++) {
+    DumpFunctionStrings(f->p[i], D);
+  }
+}
+
+static void DumpFunctionStrings(const Proto *f, DumpState *D) {
+  DumpConstantStrings(f, D);
+  DumpUpvalueStrings(f, D);
+  DumpLocalVariableStrings(f, D);
+  DumpProtosStrings(f, D);
+}
+
+int luaU_string_dump(lua_State *L, const Proto *f, lua_Writer w, void *data) {
+  DumpState D;
+  D.L = L;
+  D.writer = w;
+  D.data = data;
+  D.status = 0;
+  DumpFunctionStrings(f, &D);
+  return D.status;
+}
