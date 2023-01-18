@@ -492,7 +492,7 @@ static int traverseproto (global_State *g, Proto *f) {
   return sizeof(Proto) + sizeof(Instruction) * f->sizecode +
                          sizeof(Proto *) * f->sizep +
                          sizeof(TValue) * f->sizek +
-                         sizeof(int) * f->sizelineinfo +
+                         sizeof(unsigned short) * f->sizelineinfo +
                          sizeof(LocVar) * f->sizelocvars +
                          sizeof(Upvaldesc) * f->sizeupvalues;
 }

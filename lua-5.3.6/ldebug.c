@@ -235,7 +235,7 @@ static void collectvalidlines (lua_State *L, Closure *f) {
   else {
     int i;
     TValue v;
-    int *lineinfo = f->l.p->lineinfo;
+    unsigned short *lineinfo = f->l.p->lineinfo;
     Table *t = luaH_new(L);  /* new table to store active lines */
     sethvalue(L, L->top, t);  /* push it on stack */
     api_incr_top(L);

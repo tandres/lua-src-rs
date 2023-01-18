@@ -558,7 +558,7 @@ static void close_func (LexState *ls) {
   leaveblock(fs);
   luaM_reallocvector(L, f->code, f->sizecode, fs->pc, Instruction);
   f->sizecode = fs->pc;
-  luaM_reallocvector(L, f->lineinfo, f->sizelineinfo, fs->pc, int);
+  luaM_reallocvector(L, f->lineinfo, f->sizelineinfo, fs->pc, unsigned short);
   f->sizelineinfo = fs->pc;
   luaM_reallocvector(L, f->k, f->sizek, fs->nk, TValue);
   f->sizek = fs->nk;
