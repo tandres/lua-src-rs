@@ -148,7 +148,11 @@ static void DumpDebug (const Proto *f, DumpState *D) {
   int i, n;
   n = (D->strip) ? 0 : f->sizelineinfo;
   DumpInt(n, D);
-  DumpVector(f->lineinfo, n, D);
+  for (i = 0; i < n; i++) {
+    /* Dump Ints here instead of vector of shorts to keep dumped bytes same length.
+     * Functions dumped from this version of Lua will have lineinfo over 65,535 be masked */
+    DumpInt(f->lineinfo[i], D);
+  }
   n = (D->strip) ? 0 : f->sizelocvars;
   DumpInt(n, D);
   for (i = 0; i < n; i++) {

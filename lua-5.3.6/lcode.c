@@ -298,8 +298,8 @@ static int luaK_code (FuncState *fs, Instruction i) {
                   MAX_INT, "opcodes");
   f->code[fs->pc] = i;
   /* save corresponding line information */
-  luaM_growvector(fs->ls->L, f->lineinfo, fs->pc, f->sizelineinfo, int,
-                  MAX_INT, "opcodes");
+  luaM_growvector(fs->ls->L, f->lineinfo, fs->pc, f->sizelineinfo, 
+                  unsigned short, MAX_INT, "opcodes");
   f->lineinfo[fs->pc] = fs->ls->lastline;
   return fs->pc++;
 }
